@@ -1,0 +1,13 @@
+names:
+- id
+- three
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: mm_ocr-h97ps
+  url: https://universe.roboflow.com/mmocr-ttk5t/mm_ocr-h97ps/dataset/3
+  version: 3
+  workspace: mmocr-ttk5t
+test: ../test/images
+train: ../train/images
+val: ../valid/images

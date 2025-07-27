@@ -1,0 +1,10 @@
+streamlit
+opencv-python-headless
+numpy
+cvzone
+ultralytics
+opencv-python
+streamlit
+opencv-python
+pytesseract
+pillow
