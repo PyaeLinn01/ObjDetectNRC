@@ -25,11 +25,22 @@ def preprocess_image(image: Image.Image):
     img = np.array(image)
     if img.ndim == 3:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    # Denoising
-    img = cv2.fastNlMeansDenoising(img, None, h=30, templateWindowSize=7, searchWindowSize=21)
-    # Adaptive thresholding
+    
+    # Denoising with specified strength h=19
+    img = cv2.fastNlMeansDenoising(img, None, h=19, templateWindowSize=7, searchWindowSize=21)
+    
+    # CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    clahe = cv2.createCLAHE(clipLimit=1, tileGridSize=(19, 19))
+    img = clahe.apply(img)
+    
+    # Adaptive thresholding with specified parameters
     img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                cv2.THRESH_BINARY, 31, 11)
+                                cv2.THRESH_BINARY, 31, 20)
+    
+    # Morphological operations
+    kernel = np.ones((2, 2), np.uint8)
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel, iterations=1)
+    
     return img
 
 def detect_boxes_and_ocr(image_cv):
@@ -48,12 +59,14 @@ def detect_boxes_and_ocr(image_cv):
             confidence = box.conf[0]
             class_name = class_labels.get(cls, "Unknown")
             roi = image_cv[y1:y2, x1:x2]
-            # Grayscale processing
-            roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            # Convert ROI to PIL Image for preprocessing
+            roi_pil = Image.fromarray(cv2.cvtColor(roi, cv2.COLOR_BGR2RGB))
+            # Apply preprocessing
+            roi_processed = preprocess_image(roi_pil)
             # OCR
             os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/5/tessdata'
             CUSTOM_CONFIG = r'--oem 3 --psm 6 -l mya'
-            text = pytesseract.image_to_string(roi_gray, config=CUSTOM_CONFIG)
+            text = pytesseract.image_to_string(roi_processed, config=CUSTOM_CONFIG)
             detected.append({
                 'class': class_name,
                 'confidence': float(confidence),
@@ -91,11 +104,12 @@ def main():
         if detections:
             for i, det in enumerate(detections, 1):
                 st.markdown(f"**Box {i}: {det['class']} ({det['confidence']:.2f})**")
-                # Show the processed grayscale image for this box
+                # Show the preprocessed image for this box
                 x1, y1, x2, y2 = det['box']
                 roi = image_cv[y1:y2, x1:x2]
-                roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-                st.image(roi_gray, caption=f"Grayscale Box {i}", use_column_width=True, channels="GRAY")
+                roi_pil = Image.fromarray(cv2.cvtColor(roi, cv2.COLOR_BGR2RGB))
+                roi_processed = preprocess_image(roi_pil)
+                st.image(roi_processed, caption=f"Preprocessed Box {i}", use_column_width=True, channels="GRAY")
                 st.write(f"Extracted text: {det['text']}")
         else:
             st.write("No NRC textboxes detected.")
